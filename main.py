@@ -202,7 +202,7 @@ class ForgeryApp:
             cropped = crop_non_white_borders(page)
             faces = self.detect_faces(cropped)
             portraits = self.detect_portraits(cropped)
-            outlines = self.generate_outline_boxes(faces, portraits)
+            outlines = self.generate_outline_boxes(cropped, faces, portraits)
 
             self.layers[i] = {
                 'original': cropped,
@@ -232,12 +232,25 @@ class ForgeryApp:
         cv2_img = pil_to_cv2(image)
         return find_portrait_rect(cv2_img)
 
-    def generate_outline_boxes(self, faces, portraits):
+    def generate_outline_boxes(self, image, faces, portraits):
         boxes = [(f, "face") for f in faces]
+        img_w, img_h = image.size
+        margin = 1
+
         for p in portraits:
+            px1, py1, px2, py2 = p
+
+            # Skip if touching image edge
+            if px1 <= margin or py1 <= margin or px2 >= img_w - margin or py2 >= img_h - margin:
+                print(f"[INFO] Skipping edge-touching portrait box: {p}")
+                continue
+
             if any(face_inside(f, p) for f in faces):
                 boxes.append((p, "portrait"))
+
         return boxes
+
+
 
     def generate_outline_layer(self, size, boxes):
         img = Image.new("RGBA", size, (0, 0, 0, 0))
